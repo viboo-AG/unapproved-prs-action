@@ -1,0 +1,108 @@
+name: 'Unapproved PRs Report'
+description: 'Find and report merged Pull Requests without approval reviews'
+author: 'viboo-AG'
+branding:
+  icon: 'alert-triangle'
+  color: 'orange'
+
+inputs:
+  repo:
+    description: 'Repository to check in format owner/name. Defaults to current repository.'
+    required: false
+    default: ${{ github.repository }}
+  days:
+    description: 'Number of days to look back for merged PRs'
+    required: false
+    default: '30'
+  create-issue:
+    description: 'Create a GitHub issue with the report (true/false)'
+    required: false
+    default: 'true'
+  assignees:
+    description: 'Comma-separated list of GitHub usernames to assign to the issue'
+    required: false
+  labels:
+    description: 'Comma-separated list of labels to add to the issue'
+    required: false
+    default: 'code-review'
+  issue-title-prefix:
+    description: 'Prefix for the issue title'
+    required: false
+    default: 'Unapproved Merged PRs Report'
+
+outputs:
+  has-unapproved:
+    description: 'Whether unapproved PRs were found (true/false)'
+    value: ${{ steps.run-report.outputs.has_unapproved }}
+  report-file:
+    description: 'Path to the generated markdown report file'
+    value: ${{ steps.run-report.outputs.report_file }}
+  pr-count:
+    description: 'Number of unapproved PRs found'
+    value: ${{ steps.run-report.outputs.pr_count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      shell: bash
+      run: pip install PyGithub
+    
+    - name: Run unapproved PRs report
+      id: run-report
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+      run: |
+        # Parse repository
+        REPO="${{ inputs.repo }}"
+        OWNER=$(echo "$REPO" | cut -d'/' -f1)
+        REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
+        
+        echo "Checking repository: $OWNER/$REPO_NAME for last ${{ inputs.days }} days"
+        
+        # Create output directory
+        mkdir -p /tmp/unapproved-prs-action
+        REPORT_FILE="/tmp/unapproved-prs-action/report.md"
+        
+        # Run the script
+        if python ${{ github.action_path }}/unapproved_prs_report.py \
+          --owner "$OWNER" \
+          --repo "$REPO_NAME" \
+          --days "${{ inputs.days }}" \
+          > "$REPORT_FILE" 2>&1; then
+          echo "has_unapproved=true" >> $GITHUB_OUTPUT
+          echo "report_file=$REPORT_FILE" >> $GITHUB_OUTPUT
+          # Count PRs from the report
+          PR_COUNT=$(grep -c "^- \*\*\[#" "$REPORT_FILE" || echo "0")
+          echo "pr_count=$PR_COUNT" >> $GITHUB_OUTPUT
+          echo "✅ Found $PR_COUNT unapproved PR(s)"
+        else
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 1 ]; then
+            # Exit code 1 means no unapproved PRs found
+            echo "has_unapproved=false" >> $GITHUB_OUTPUT
+            echo "report_file=" >> $GITHUB_OUTPUT
+            echo "pr_count=0" >> $GITHUB_OUTPUT
+            echo "✅ No unapproved PRs found"
+          else
+            # Other exit codes indicate errors
+            echo "❌ Error running report (exit code: $EXIT_CODE)"
+            cat "$REPORT_FILE" || true
+            exit $EXIT_CODE
+          fi
+        fi
+    
+    - name: Create GitHub issue with report
+      if: steps.run-report.outputs.has_unapproved == 'true' && inputs.create-issue == 'true'
+      uses: peter-evans/create-issue-from-file@v4
+      with:
+        title: "${{ inputs.issue-title-prefix }} - ${{ github.run_id }}"
+        assignees: ${{ inputs.assignees }}
+        labels: ${{ inputs.labels }}
+        content-filepath: ${{ steps.run-report.outputs.report_file }}
