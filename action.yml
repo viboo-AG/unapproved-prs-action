@@ -71,11 +71,14 @@ runs:
         REPORT_FILE="/tmp/unapproved-prs-action/report.md"
         
         # Run the script
-        if python ${{ github.action_path }}/unapproved_prs_report.py \
+        python ${{ github.action_path }}/unapproved_prs_report.py \
           --owner "$OWNER" \
           --repo "$REPO_NAME" \
           --days "${{ inputs.days }}" \
-          > "$REPORT_FILE" 2>&1; then
+          --output "$REPORT_FILE"
+        
+        # Check if report file was created (means PRs were found)
+        if [ -f "$REPORT_FILE" ] && [ -s "$REPORT_FILE" ]; then
           echo "has_unapproved=true" >> $GITHUB_OUTPUT
           echo "report_file=$REPORT_FILE" >> $GITHUB_OUTPUT
           # Count PRs from the report
@@ -83,19 +86,10 @@ runs:
           echo "pr_count=$PR_COUNT" >> $GITHUB_OUTPUT
           echo "✅ Found $PR_COUNT unapproved PR(s)"
         else
-          EXIT_CODE=$?
-          if [ $EXIT_CODE -eq 1 ]; then
-            # Exit code 1 means no unapproved PRs found
-            echo "has_unapproved=false" >> $GITHUB_OUTPUT
-            echo "report_file=" >> $GITHUB_OUTPUT
-            echo "pr_count=0" >> $GITHUB_OUTPUT
-            echo "✅ No unapproved PRs found"
-          else
-            # Other exit codes indicate errors
-            echo "❌ Error running report (exit code: $EXIT_CODE)"
-            cat "$REPORT_FILE" || true
-            exit $EXIT_CODE
-          fi
+          echo "has_unapproved=false" >> $GITHUB_OUTPUT
+          echo "report_file=" >> $GITHUB_OUTPUT
+          echo "pr_count=0" >> $GITHUB_OUTPUT
+          echo "✅ No unapproved PRs found"
         fi
     
     - name: Create GitHub issue with report
