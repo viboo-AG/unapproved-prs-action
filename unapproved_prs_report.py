@@ -13,7 +13,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, TextIO
 
-from github import Github
+from github import Auth, Github
 from github.GithubException import GithubException
 
 if TYPE_CHECKING:
@@ -186,8 +186,9 @@ def main() -> None:
         print("Error: GITHUB_TOKEN environment variable not set", file=sys.stderr)
         sys.exit(1)
 
-    # Initialize GitHub client
-    gh = Github(token)
+    # Initialize GitHub client with new authentication method
+    auth = Auth.Token(token)
+    gh = Github(auth=auth)
 
     try:
         repo = gh.get_repo(f"{args.owner}/{args.repo}")
