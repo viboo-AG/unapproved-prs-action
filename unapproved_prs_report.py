@@ -8,6 +8,7 @@ without prior approval, so they can be reviewed post-merge.
 
 import argparse
 import os
+import signal
 import sys
 from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
@@ -19,6 +20,18 @@ from github.GithubException import GithubException
 if TYPE_CHECKING:
     from github.PullRequest import PullRequest
     from github.Repository import Repository
+
+
+# Flag to track if we should exit early
+_should_exit = False
+
+
+def _signal_handler(signum: int, frame: Any) -> None:
+    """Handle SIGTERM and SIGINT for graceful cancellation."""
+    global _should_exit
+    _should_exit = True
+    print("\nReceived cancellation signal, exiting...", file=sys.stderr)
+    sys.exit(130)  # Exit code 128 + SIGINT(2)
 
 
 def _get_pr_approval_status(
@@ -44,6 +57,10 @@ def _get_pr_approval_status(
     approvals: set[str] = set()
 
     for review in pr.get_reviews():
+        # Check for cancellation signal
+        if _should_exit:
+            sys.exit(130)
+
         reviewer = review.user.login
         review_time = review.submitted_at
 
@@ -85,6 +102,10 @@ def _find_unreviewed_merged_prs(
     all_prs = repo.get_pulls(state="closed", sort="updated", direction="desc")
 
     for pr in all_prs:
+        # Check for cancellation signal
+        if _should_exit:
+            sys.exit(130)
+
         # Skip if not merged
         if not pr.merged:
             continue
@@ -167,6 +188,10 @@ def _generate_report(
 
 def main() -> None:
     """Main function."""
+    # Register signal handlers for graceful cancellation
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+
     parser = argparse.ArgumentParser(description="Generate report of merged PRs without approval.")
     parser.add_argument(
         "--owner",
