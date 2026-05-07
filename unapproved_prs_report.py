@@ -142,7 +142,7 @@ def _generate_report(
 
     unreviewed_prs = _find_unreviewed_merged_prs(repo, since_days)
 
-    # If no unreviewed PRs found, exit without generating a report
+    # If no unreviewed PRs found, don't generate a report
     if not unreviewed_prs:
         return
 
@@ -209,6 +209,11 @@ def main() -> None:
         default=30,
         help="Number of days to look back (default: 30)",
     )
+    parser.add_argument(
+        "--output",
+        default="-",
+        help="Output file path (default: stdout)",
+    )
 
     args = parser.parse_args()
 
@@ -229,11 +234,18 @@ def main() -> None:
         unreviewed_prs = _find_unreviewed_merged_prs(repo, args.days)
 
         if not unreviewed_prs:
-            # No unreviewed PRs found - exit with code 1 to signal no action needed
-            sys.exit(1)
+            # No unreviewed PRs found - this is success, just don't write output
+            print(f"✓ No unapproved merged PRs found in the last {args.days} days", file=sys.stderr)
+            sys.exit(0)
 
-        # Generate the report
-        _generate_report(sys.stdout, repo, args.days)
+        # Generate the report to file or stdout
+        if args.output == "-":
+            _generate_report(sys.stdout, repo, args.days)
+        else:
+            with open(args.output, "w") as f:
+                _generate_report(f, repo, args.days)
+            print(f"✓ Report written to {args.output}", file=sys.stderr)
+
     except GithubException as e:
         print(f"Error accessing GitHub: {e}", file=sys.stderr)
         sys.exit(2)
