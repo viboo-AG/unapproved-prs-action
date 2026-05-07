@@ -181,7 +181,3 @@ MIT
 
 Contributions welcome! Please open an issue or PR.
 
-## Related
-
-- Issue: [viboo-AG/PCaaS#4850](https://github.com/viboo-AG/PCaaS/issues/4850)
-- PR: [viboo-AG/PCaaS#4896](https://github.com/viboo-AG/PCaaS/pull/4896)
