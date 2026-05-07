@@ -14,10 +14,6 @@ inputs:
     description: 'Number of days to look back for merged PRs'
     required: false
     default: '30'
-  max-prs:
-    description: 'Maximum number of PRs to check (0 = unlimited)'
-    required: false
-    default: '0'
   create-issue:
     description: 'Create a GitHub issue with the report (true/false)'
     required: false
@@ -68,25 +64,18 @@ runs:
         OWNER=$(echo "$REPO" | cut -d'/' -f1)
         REPO_NAME=$(echo "$REPO" | cut -d'/' -f2)
         
-        echo "Checking repository: $OWNER/$REPO_NAME for last ${{ inputs.days }} days (max PRs: ${{ inputs.max-prs }})"
+        echo "Checking repository: $OWNER/$REPO_NAME for last ${{ inputs.days }} days"
         
         # Create output directory
         mkdir -p /tmp/unapproved-prs-action
         REPORT_FILE="/tmp/unapproved-prs-action/report.md"
         
-        # Build command with optional max-prs
-        CMD="python ${{ github.action_path }}/unapproved_prs_report.py \
-          --owner \"$OWNER\" \
-          --repo \"$REPO_NAME\" \
-          --days \"${{ inputs.days }}\" \
-          --output \"$REPORT_FILE\""
-        
-        if [ "${{ inputs.max-prs }}" != "0" ]; then
-          CMD="$CMD --max-prs \"${{ inputs.max-prs }}\""
-        fi
-        
         # Run the script
-        eval $CMD
+        python ${{ github.action_path }}/unapproved_prs_report.py \
+          --owner "$OWNER" \
+          --repo "$REPO_NAME" \
+          --days "${{ inputs.days }}" \
+          --output "$REPORT_FILE"
         
         # Check if report file was created (means PRs were found)
         if [ -f "$REPORT_FILE" ] && [ -s "$REPORT_FILE" ]; then
