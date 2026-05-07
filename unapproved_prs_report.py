@@ -82,7 +82,6 @@ def _get_pr_approval_status(
 def _find_unreviewed_merged_prs(
     repo: Any,  # Repository - using Any to avoid runtime import
     since_days: int = 30,
-    max_prs: int = 0,  # 0 = no limit
 ) -> Sequence[tuple[Any, str]]:  # list[tuple[PullRequest, str]]
     """
     Find merged PRs that were never approved before merge.
@@ -90,7 +89,6 @@ def _find_unreviewed_merged_prs(
     Args:
         repo: GitHub repository object
         since_days: How many days back to search
-        max_prs: Maximum number of PRs to check (0 = no limit)
 
     Returns:
         List of tuples (pr, merged_by)
@@ -103,18 +101,12 @@ def _find_unreviewed_merged_prs(
     print(f"Searching for merged PRs in the last {since_days} days...", file=sys.stderr)
 
     # Get all closed PRs sorted by updated date
-    # Use larger page size to reduce API calls
-    all_prs = repo.get_pulls(state="closed", sort="updated", direction="desc", per_page=100)
+    all_prs = repo.get_pulls(state="closed", sort="updated", direction="desc")
 
     for pr in all_prs:
         # Check for cancellation signal
         if _should_exit:
             sys.exit(130)
-
-        # Check max PR limit
-        if max_prs > 0 and checked_count >= max_prs:
-            print(f"Reached max PR limit ({max_prs}), stopping...", file=sys.stderr)
-            break
 
         checked_count += 1
 
@@ -158,11 +150,10 @@ def _generate_report(
     f: TextIO,
     repo: Any,  # Repository - using Any to avoid runtime import
     since_days: int = 30,
-    max_prs: int = 0,
 ) -> None:
     """Generate a report of unapproved merged PRs."""
 
-    unreviewed_prs = _find_unreviewed_merged_prs(repo, since_days, max_prs)
+    unreviewed_prs = _find_unreviewed_merged_prs(repo, since_days)
 
     # If no unreviewed PRs found, don't generate a report
     if not unreviewed_prs:
@@ -232,12 +223,6 @@ def main() -> None:
         help="Number of days to look back (default: 30)",
     )
     parser.add_argument(
-        "--max-prs",
-        type=int,
-        default=0,
-        help="Maximum number of PRs to check, 0 for unlimited (default: 0)",
-    )
-    parser.add_argument(
         "--output",
         default="-",
         help="Output file path (default: stdout)",
@@ -259,7 +244,7 @@ def main() -> None:
         repo = gh.get_repo(f"{args.owner}/{args.repo}")
 
         # Check if there are any unreviewed PRs before generating report
-        unreviewed_prs = _find_unreviewed_merged_prs(repo, args.days, args.max_prs)
+        unreviewed_prs = _find_unreviewed_merged_prs(repo, args.days)
 
         if not unreviewed_prs:
             # No unreviewed PRs found - this is success, just don't write output
@@ -268,10 +253,10 @@ def main() -> None:
 
         # Generate the report to file or stdout
         if args.output == "-":
-            _generate_report(sys.stdout, repo, args.days, args.max_prs)
+            _generate_report(sys.stdout, repo, args.days)
         else:
             with open(args.output, "w") as f:
-                _generate_report(f, repo, args.days, args.max_prs)
+                _generate_report(f, repo, args.days)
             print(f"✓ Report written to {args.output}", file=sys.stderr)
 
     except GithubException as e:
