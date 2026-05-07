@@ -38,21 +38,28 @@ def _get_pr_approval_status(
     if not merge_time:
         return False
 
-    # Track the latest review state per reviewer
-    reviewer_states: dict[str, tuple[datetime, str]] = {}
+    # Track approval status per reviewer
+    # Note: In GitHub, APPROVED stays in effect until explicitly dismissed or
+    # changed to REQUEST_CHANGES. COMMENTED reviews don't override approvals.
+    approvals: set[str] = set()
 
     for review in pr.get_reviews():
         reviewer = review.user.login
         review_time = review.submitted_at
 
         # Only consider reviews submitted before merge
-        if review_time and review_time < merge_time:
-            # Keep only the latest review from each reviewer
-            if reviewer not in reviewer_states or review_time > reviewer_states[reviewer][0]:
-                reviewer_states[reviewer] = (review_time, review.state)
+        if not review_time or review_time >= merge_time:
+            continue
 
-    # Check if any reviewer's final state was APPROVED
-    return any(state == "APPROVED" for _, state in reviewer_states.values())
+        # Track approval state changes
+        if review.state == "APPROVED":
+            approvals.add(reviewer)
+        elif review.state in ("REQUEST_CHANGES", "DISMISSED"):
+            # These states override a previous approval
+            approvals.discard(reviewer)
+        # COMMENTED state doesn't affect approval status
+
+    return len(approvals) > 0
 
 
 def _find_unreviewed_merged_prs(
