@@ -26,7 +26,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
   issues: write
   pull-requests: read
 
@@ -55,7 +54,6 @@ on:
         default: '30'
 
 permissions:
-  contents: read
   issues: write
   pull-requests: read
 
@@ -65,7 +63,7 @@ jobs:
     steps:
       - name: Generate token for org-level access
         id: generate-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
           app-id: ${{ secrets.ORG_AUTH_APP_ID }}
           private-key: ${{ secrets.ORG_AUTH_APP_PEM }}

@@ -45,13 +45,13 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
       with:
         python-version: '3.11'
     
     - name: Install dependencies
       shell: bash
-      run: pip install PyGithub
+      run: pip install PyGithub==2.9.1
     
     - name: Run unapproved PRs report
       id: run-report
@@ -100,7 +100,7 @@ runs:
     
     - name: Create GitHub issue with report
       if: steps.run-report.outputs.has_unapproved == 'true' && inputs.create-issue == 'true'
-      uses: peter-evans/create-issue-from-file@v4
+      uses: peter-evans/create-issue-from-file@433e51abf769039ee20ba1293a088ca19d573b7f # v4.0.1
       with:
         title: "${{ inputs.issue-title-prefix }} - ${{ github.run_id }}"
         assignees: ${{ inputs.assignees }}
