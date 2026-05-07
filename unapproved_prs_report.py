@@ -98,10 +98,13 @@ def _find_unreviewed_merged_prs(
     checked_count = 0
     merged_count = 0
 
-    print(f"Searching for merged PRs in the last {since_days} days...", file=sys.stderr)
+    # Get the default branch
+    default_branch = repo.default_branch
+    print(f"Searching for merged PRs to '{default_branch}' in the last {since_days} days...", file=sys.stderr)
 
-    # Get all closed PRs sorted by updated date
-    all_prs = repo.get_pulls(state="closed", sort="updated", direction="desc")
+    # Get closed PRs that were merged to the default branch
+    # Using base=default_branch filters at API level, reducing PRs to check
+    all_prs = repo.get_pulls(state="closed", sort="updated", direction="desc", base=default_branch)
 
     for pr in all_prs:
         # Check for cancellation signal
@@ -142,7 +145,7 @@ def _find_unreviewed_merged_prs(
             unreviewed_prs.append((pr, merged_by))
             print(f"Found unapproved PR #{pr.number}: {pr.title[:60]}...", file=sys.stderr)
 
-    print(f"✓ Checked {checked_count} PRs ({merged_count} merged), found {len(unreviewed_prs)} unapproved", file=sys.stderr)
+    print(f"✓ Checked {checked_count} PRs ({merged_count} merged to {default_branch}), found {len(unreviewed_prs)} unapproved", file=sys.stderr)
     return unreviewed_prs
 
 
@@ -159,9 +162,11 @@ def _generate_report(
     if not unreviewed_prs:
         return
 
+    default_branch = repo.default_branch
+
     print("# Merged PRs Without Approval", file=f)
     print("", file=f)
-    print(f"This report shows PRs merged in the last {since_days} days without approval.", file=f)
+    print(f"This report shows PRs merged to `{default_branch}` in the last {since_days} days without approval.", file=f)
     print("These PRs should be reviewed post-merge to ensure code quality.", file=f)
     print("", file=f)
 
