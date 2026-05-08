@@ -16,6 +16,7 @@ This is useful for tracking emergency hot-fix PRs that were merged without prior
 - ✅ Progress logging for long-running searches
 - ✅ Graceful cancellation support
 - ✅ Efficient API filtering (only checks default branch PRs)
+- ✅ Single-pass scanning (no duplicate work)
 
 ## Usage
 
@@ -128,16 +129,20 @@ The action's runtime depends on the number of PRs **to the default branch** in y
 
 | Time Period | Typical PR Count | Estimated Runtime |
 |-------------|-----------------|-------------------|
-| 7 days      | 10-20 PRs       | 1-2 minutes       |
-| 30 days     | 50-100 PRs      | 5-10 minutes      |
-| 90 days     | 150-300 PRs     | 15-25 minutes     |
-| 180 days    | 300-500 PRs     | 30-45 minutes     |
-| 365 days    | 600-1000 PRs    | 50-70 minutes     |
+| 7 days      | 10-20 PRs       | <1 minute         |
+| 30 days     | 50-100 PRs      | 3-5 minutes       |
+| 90 days     | 150-300 PRs     | 8-15 minutes      |
+| 180 days    | 300-500 PRs     | 15-25 minutes     |
+| 365 days    | 600-1000 PRs    | 25-40 minutes     |
+| 600 days    | 1000-1500 PRs   | 40-60 minutes     |
 
-**Optimization:** The action filters PRs at the API level using `base=default_branch`, which significantly reduces the number of PRs to check. For repositories with many feature-to-feature branch merges, this can reduce processing time by 50-80%.
+**Optimizations:**
+- **API-level filtering**: Uses `base=default_branch` to only fetch relevant PRs (50-80% reduction)
+- **Single-pass scanning**: PRs are scanned once and results reused (50% faster than v1)
+- **Early termination**: Stops scanning when past the lookback window
 
-**Note on GitHub App Tokens:** GitHub App tokens (from `actions/create-github-app-token`) expire after **1 hour**. For very active repositories or searches >365 days that may take >60 minutes:
-- Use a Personal Access Token (PAT) instead
+**Note on GitHub App Tokens:** GitHub App tokens (from `actions/create-github-app-token`) expire after **1 hour**. For searches >365 days that may approach 60 minutes:
+- Use a Personal Access Token (PAT) for safety margin
 - Or split into multiple smaller time periods
 
 ```yaml
@@ -188,7 +193,7 @@ Please review these PRs and add a post-merge review:
 
 1. **Queries merged PRs** from the last N days (configurable) **that were merged to the default branch**
 2. **Filters at API level** using `base=default_branch` to reduce unnecessary checks
-3. **Checks each PR** for approval reviews submitted before merge time
+3. **Checks each PR** for approval reviews submitted before merge time (single pass)
 4. **Tracks approval states** per reviewer:
    - `APPROVED` stays in effect until explicitly dismissed or changed to `REQUEST_CHANGES`
    - `COMMENTED` reviews don't cancel approvals
@@ -238,6 +243,12 @@ env:
 **Cause:** This was a bug in earlier versions where `COMMENTED` reviews were incorrectly overriding `APPROVED` status.
 
 **Solution:** Upgrade to the latest version (`@main`). The bug was fixed in commit `ebc5128`.
+
+### Workflow taking twice as long as expected
+
+**Cause:** Versions before commit `8d64e9e` scanned PRs twice (once for checking, once for reporting).
+
+**Solution:** Upgrade to `@main`. The duplicate scanning bug was fixed.
 
 ### No output or progress updates
 
