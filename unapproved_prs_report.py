@@ -8,6 +8,7 @@ without prior approval, so they can be reviewed post-merge.
 
 import argparse
 import os
+import re
 import signal
 import sys
 from collections.abc import Sequence
@@ -43,6 +44,10 @@ def _get_pr_approval_status(
     This supports post-merge review workflows where PRs are merged during
     emergencies and reviewed after the fact.
 
+    Checks both:
+    1. Formal GitHub Reviews (APPROVED state)
+    2. PR comments containing approval patterns (for users without mobile app access)
+
     Args:
         pr: Pull request object
 
@@ -54,6 +59,7 @@ def _get_pr_approval_status(
     # changed to REQUEST_CHANGES. COMMENTED reviews don't override approvals.
     approvals: set[str] = set()
 
+    # Check formal reviews
     for review in pr.get_reviews():
         # Check for cancellation signal
         if _should_exit:
@@ -68,6 +74,26 @@ def _get_pr_approval_status(
             # These states override a previous approval
             approvals.discard(reviewer)
         # COMMENTED state doesn't affect approval status
+
+    # If we have formal approvals, we're done
+    if approvals:
+        return True
+
+    # Check PR comments for approval patterns
+    # This supports users who can't use mobile app for formal reviews
+    approval_pattern = re.compile(
+        r"(?:✅|✓|:white_check_mark:)?\s*(?:post-merge\s+review|review):\s*(?:approved|lgtm|looks\s+good)",
+        re.IGNORECASE
+    )
+
+    for comment in pr.get_issue_comments():
+        # Check for cancellation signal
+        if _should_exit:
+            sys.exit(130)
+
+        if comment.body and approval_pattern.search(comment.body):
+            commenter = comment.user.login
+            approvals.add(commenter)
 
     return len(approvals) > 0
 
@@ -206,7 +232,7 @@ def _generate_report(
     print("", file=f)
     print("### Alternative: Add Review Comment", file=f)
     print("", file=f)
-    print("If you can't use the mobile app, add a comment with your review decision:", file=f)
+    print("If you can't use the mobile app, add a comment on the PR with this format:", file=f)
     print("", file=f)
     print("```", file=f)
     print("✅ Post-merge review: APPROVED", file=f)
@@ -214,7 +240,7 @@ def _generate_report(
     print("[Your review comments here]", file=f)
     print("```", file=f)
     print("", file=f)
-    print("Then close this issue once all PRs have been reviewed.", file=f)
+    print("The script will detect this pattern and the PR won't appear in future reports.", file=f)
     print("", file=f)
     print("---", file=f)
     print(f"*Report generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}*", file=f)
