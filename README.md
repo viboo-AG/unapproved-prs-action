@@ -8,7 +8,7 @@ This is useful for tracking emergency hot-fix PRs that were merged without prior
 
 - ✅ Finds all merged PRs without approval reviews **to the default branch** (main/develop/etc)
 - ✅ Checks approval status at any time (before OR after merge)
-- ✅ Supports post-merge review workflow (approve via mobile app, won't appear in next run)
+- ✅ Supports post-merge review workflow (approve via mobile app, CLI, or comment)
 - ✅ Correctly handles approval states (COMMENTED reviews don't override APPROVED)
 - ✅ Tracks latest approval per reviewer (handles review state changes)
 - ✅ Rejects self-approvals (PR author cannot approve their own PR)
@@ -186,7 +186,9 @@ These PRs should be reviewed post-merge to ensure code quality.
 
 ## How to Review
 
-### Using GitHub Mobile App (Recommended)
+Choose one of the following methods to approve a PR:
+
+### Option 1: GitHub Mobile App (Recommended)
 
 GitHub's mobile app allows you to approve already-merged PRs:
 
@@ -196,11 +198,22 @@ GitHub's mobile app allows you to approve already-merged PRs:
 4. Review the code and add comments if needed
 5. Select **"Approve"** and submit
 
-✅ Once approved, the PR **will not appear in future reports**.
+### Option 2: GitHub CLI
 
-### Alternative: Add Review Comment
+Use the GitHub CLI to approve from the command line:
 
-If you can't use the mobile app, add a comment on the PR with this format:
+```bash
+gh pr review <PR-NUMBER> --approve --body "Post-merge review: changes look good"
+```
+
+Example:
+```bash
+gh pr review 3170 --approve --body "Reviewed emergency fix - approved"
+```
+
+### Option 3: Add Review Comment
+
+If you can't use the mobile app or CLI, add a comment on the PR:
 
 ```
 ✅ Post-merge review: APPROVED
@@ -208,9 +221,11 @@ If you can't use the mobile app, add a comment on the PR with this format:
 [Your review comments here]
 ```
 
+---
+
 **Note:** The approval must come from someone other than the PR author (no self-approvals).
 
-The script will detect this pattern and the PR won't appear in future reports.
+✅ Once approved (via any method), the PR **will not appear in future reports**.
 ```
 
 ## How It Works
@@ -235,7 +250,10 @@ The action supports emergency hot-fix workflows:
 
 1. **Emergency merge**: PR is merged without approval during an incident
 2. **Daily report**: Action finds the unapproved PR and creates an issue
-3. **Post-merge review**: Team reviews the PR via GitHub mobile app and approves it (or adds approval comment)
+3. **Post-merge review**: Team reviews the PR and approves it using:
+   - GitHub mobile app (tap "Review changes" → "Approve")
+   - GitHub CLI (`gh pr review <PR> --approve`)
+   - Comment with approval pattern ("✅ Post-merge review: APPROVED")
 4. **Next run**: PR doesn't appear anymore (has approval now)
 
 This workflow tracks PRs that need review while allowing them to disappear once reviewed, even if the review happens after merge.
@@ -255,9 +273,10 @@ The action correctly handles GitHub's review state model:
 - Adding comments after approving doesn't cancel the approval
 - This matches GitHub's native PR approval behavior
 - **Approvals are accepted at any time** - before OR after merge
-- **Two approval methods**:
-  1. Formal GitHub Reviews (preferred - via mobile app or web)
-  2. PR comments matching patterns like "Post-merge review: APPROVED"
+- **Three approval methods**:
+  1. Formal GitHub Reviews via mobile app (preferred)
+  2. Formal GitHub Reviews via CLI (`gh pr review --approve`)
+  3. PR comments matching patterns like "Post-merge review: APPROVED"
 - **Self-approvals are rejected** - the PR author cannot approve their own PR
 
 ## Requirements
@@ -270,7 +289,9 @@ The action correctly handles GitHub's review state model:
 
 According to [this GitHub discussion](https://github.com/orgs/community/discussions/70480#discussioncomment-8831121), GitHub's mobile app supports post-merge reviews, allowing teams to review emergency PRs after they've been merged.
 
-**Once you approve a PR** (via mobile app or comment), **it will not appear in future reports** - the action checks for approvals at any time, not just before merge.
+**The GitHub CLI also supports post-merge reviews** using `gh pr review --approve`, making it convenient for command-line users.
+
+**Once you approve a PR** (via mobile app, CLI, or comment), **it will not appear in future reports** - the action checks for approvals at any time, not just before merge.
 
 **Important:** The approval must come from someone other than the PR author. Self-approvals are not counted.
 
