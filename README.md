@@ -182,12 +182,31 @@ These PRs should be reviewed post-merge to ensure code quality.
   - Merged: 2026-05-07 01:20 UTC
   - Author: @hubebenj
 
-## Action Required
+## How to Review
 
-Please review these PRs and add a post-merge review:
-1. Review the changes in the PR
-2. Add your approval (GitHub mobile app allows post-merge reviews)
-3. Once approved, the PR will not appear in future reports
+### Using GitHub Mobile App (Recommended)
+
+GitHub's mobile app allows you to approve already-merged PRs:
+
+1. Open the **GitHub mobile app** (iOS or Android)
+2. Navigate to the PR from the list above
+3. Tap **"Review changes"**
+4. Review the code and add comments if needed
+5. Select **"Approve"** and submit
+
+✅ Once approved, the PR **will not appear in future reports**.
+
+### Alternative: Add Review Comment
+
+If you can't use the mobile app, add a comment with your review decision:
+
+```
+✅ Post-merge review: APPROVED
+
+[Your review comments here]
+```
+
+Then close this issue once all PRs have been reviewed.
 ```
 
 ## How It Works
