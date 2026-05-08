@@ -151,18 +151,22 @@ def _find_unreviewed_merged_prs(
 
 def _generate_report(
     f: TextIO,
-    repo: Any,  # Repository - using Any to avoid runtime import
-    since_days: int = 30,
+    unreviewed_prs: Sequence[tuple[Any, str]],  # list[tuple[PullRequest, str]]
+    default_branch: str,
+    since_days: int,
 ) -> None:
-    """Generate a report of unapproved merged PRs."""
-
-    unreviewed_prs = _find_unreviewed_merged_prs(repo, since_days)
-
+    """
+    Generate a report of unapproved merged PRs.
+    
+    Args:
+        f: File to write report to
+        unreviewed_prs: List of (pr, merged_by) tuples
+        default_branch: Name of the default branch
+        since_days: Number of days searched
+    """
     # If no unreviewed PRs found, don't generate a report
     if not unreviewed_prs:
         return
-
-    default_branch = repo.default_branch
 
     print("# Merged PRs Without Approval", file=f)
     print("", file=f)
@@ -248,7 +252,7 @@ def main() -> None:
     try:
         repo = gh.get_repo(f"{args.owner}/{args.repo}")
 
-        # Check if there are any unreviewed PRs before generating report
+        # Check if there are any unreviewed PRs (scan only once)
         unreviewed_prs = _find_unreviewed_merged_prs(repo, args.days)
 
         if not unreviewed_prs:
@@ -256,12 +260,12 @@ def main() -> None:
             print(f"✓ No unapproved merged PRs found in the last {args.days} days", file=sys.stderr)
             sys.exit(0)
 
-        # Generate the report to file or stdout
+        # Generate the report to file or stdout (using already-scanned results)
         if args.output == "-":
-            _generate_report(sys.stdout, repo, args.days)
+            _generate_report(sys.stdout, unreviewed_prs, repo.default_branch, args.days)
         else:
             with open(args.output, "w") as f:
-                _generate_report(f, repo, args.days)
+                _generate_report(f, unreviewed_prs, repo.default_branch, args.days)
             print(f"✓ Report written to {args.output}", file=sys.stderr)
 
     except GithubException as e:
