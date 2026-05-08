@@ -1,13 +1,14 @@
 # Unapproved PRs Report Action
 
-GitHub Action to identify and report merged Pull Requests that were never approved before merging **to the default branch**.
+GitHub Action to identify and report merged Pull Requests that have never been approved (before OR after merge) **to the default branch**.
 
 This is useful for tracking emergency hot-fix PRs that were merged without prior review, enabling post-merge code review processes.
 
 ## Features
 
 - ✅ Finds all merged PRs without approval reviews **to the default branch** (main/develop/etc)
-- ✅ Checks approval status before merge time (not after)
+- ✅ Checks approval status at any time (before OR after merge)
+- ✅ Supports post-merge review workflow (approve via mobile app, won't appear in next run)
 - ✅ Correctly handles approval states (COMMENTED reviews don't override APPROVED)
 - ✅ Tracks latest approval per reviewer (handles review state changes)
 - ✅ Optionally creates a GitHub issue with detailed report
@@ -185,21 +186,32 @@ These PRs should be reviewed post-merge to ensure code quality.
 
 Please review these PRs and add a post-merge review:
 1. Review the changes in the PR
-2. Add your review comments (GitHub mobile app allows post-merge reviews)
-3. Close this issue once all PRs have been reviewed
+2. Add your approval (GitHub mobile app allows post-merge reviews)
+3. Once approved, the PR will not appear in future reports
 ```
 
 ## How It Works
 
 1. **Queries merged PRs** from the last N days (configurable) **that were merged to the default branch**
 2. **Filters at API level** using `base=default_branch` to reduce unnecessary checks
-3. **Checks each PR** for approval reviews submitted before merge time (single pass)
+3. **Checks each PR** for approval reviews (at ANY time - before OR after merge) (single pass)
 4. **Tracks approval states** per reviewer:
    - `APPROVED` stays in effect until explicitly dismissed or changed to `REQUEST_CHANGES`
    - `COMMENTED` reviews don't cancel approvals
    - Only `DISMISSED` or `REQUEST_CHANGES` override a previous approval
 5. **Generates report** grouped by who merged the PR (if unapproved PRs exist)
 6. **Creates GitHub issue** with the report (optional)
+
+### Post-Merge Review Workflow
+
+The action supports emergency hot-fix workflows:
+
+1. **Emergency merge**: PR is merged without approval during an incident
+2. **Daily report**: Action finds the unapproved PR and creates an issue
+3. **Post-merge review**: Team reviews the PR via GitHub mobile app and approves it
+4. **Next run**: PR doesn't appear anymore (has approval now)
+
+This workflow tracks PRs that need review while allowing them to disappear once reviewed, even if the review happens after merge.
 
 ### Why Only Default Branch?
 
@@ -215,6 +227,7 @@ The action correctly handles GitHub's review state model:
 - An `APPROVED` review remains valid until the reviewer explicitly dismisses it or requests changes
 - Adding comments after approving doesn't cancel the approval
 - This matches GitHub's native PR approval behavior
+- **Approvals are accepted at any time** - before OR after merge
 
 ## Requirements
 
@@ -225,6 +238,8 @@ The action correctly handles GitHub's review state model:
 ## Post-Merge Review
 
 According to [this GitHub discussion](https://github.com/orgs/community/discussions/70480#discussioncomment-8831121), GitHub's mobile app supports post-merge reviews, allowing teams to review emergency PRs after they've been merged.
+
+**Once you approve a PR** (via mobile app or any other method), **it will not appear in future reports** - the action checks for approvals at any time, not just before merge.
 
 ## Troubleshooting
 
