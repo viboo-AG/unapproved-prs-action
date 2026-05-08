@@ -11,6 +11,8 @@ This is useful for tracking emergency hot-fix PRs that were merged without prior
 - ✅ Supports post-merge review workflow (approve via mobile app, won't appear in next run)
 - ✅ Correctly handles approval states (COMMENTED reviews don't override APPROVED)
 - ✅ Tracks latest approval per reviewer (handles review state changes)
+- ✅ Rejects self-approvals (PR author cannot approve their own PR)
+- ✅ Supports both formal reviews and approval comments
 - ✅ Optionally creates a GitHub issue with detailed report
 - ✅ Configurable lookback period
 - ✅ Groups results by who merged the PR
@@ -198,7 +200,7 @@ GitHub's mobile app allows you to approve already-merged PRs:
 
 ### Alternative: Add Review Comment
 
-If you can't use the mobile app, add a comment with your review decision:
+If you can't use the mobile app, add a comment on the PR with this format:
 
 ```
 ✅ Post-merge review: APPROVED
@@ -206,7 +208,9 @@ If you can't use the mobile app, add a comment with your review decision:
 [Your review comments here]
 ```
 
-Then close this issue once all PRs have been reviewed.
+**Note:** The approval must come from someone other than the PR author (no self-approvals).
+
+The script will detect this pattern and the PR won't appear in future reports.
 ```
 
 ## How It Works
@@ -214,12 +218,16 @@ Then close this issue once all PRs have been reviewed.
 1. **Queries merged PRs** from the last N days (configurable) **that were merged to the default branch**
 2. **Filters at API level** using `base=default_branch` to reduce unnecessary checks
 3. **Checks each PR** for approval reviews (at ANY time - before OR after merge) (single pass)
-4. **Tracks approval states** per reviewer:
+4. **Validates approvals**:
+   - Checks formal GitHub Reviews (APPROVED state)
+   - Also checks PR comments for approval patterns (e.g., "Post-merge review: APPROVED")
+   - Rejects self-approvals (approval must be from someone other than the PR author)
+5. **Tracks approval states** per reviewer:
    - `APPROVED` stays in effect until explicitly dismissed or changed to `REQUEST_CHANGES`
    - `COMMENTED` reviews don't cancel approvals
    - Only `DISMISSED` or `REQUEST_CHANGES` override a previous approval
-5. **Generates report** grouped by who merged the PR (if unapproved PRs exist)
-6. **Creates GitHub issue** with the report (optional)
+6. **Generates report** grouped by who merged the PR (if unapproved PRs exist)
+7. **Creates GitHub issue** with the report (optional)
 
 ### Post-Merge Review Workflow
 
@@ -227,7 +235,7 @@ The action supports emergency hot-fix workflows:
 
 1. **Emergency merge**: PR is merged without approval during an incident
 2. **Daily report**: Action finds the unapproved PR and creates an issue
-3. **Post-merge review**: Team reviews the PR via GitHub mobile app and approves it
+3. **Post-merge review**: Team reviews the PR via GitHub mobile app and approves it (or adds approval comment)
 4. **Next run**: PR doesn't appear anymore (has approval now)
 
 This workflow tracks PRs that need review while allowing them to disappear once reviewed, even if the review happens after merge.
@@ -247,6 +255,10 @@ The action correctly handles GitHub's review state model:
 - Adding comments after approving doesn't cancel the approval
 - This matches GitHub's native PR approval behavior
 - **Approvals are accepted at any time** - before OR after merge
+- **Two approval methods**:
+  1. Formal GitHub Reviews (preferred - via mobile app or web)
+  2. PR comments matching patterns like "Post-merge review: APPROVED"
+- **Self-approvals are rejected** - the PR author cannot approve their own PR
 
 ## Requirements
 
@@ -258,7 +270,9 @@ The action correctly handles GitHub's review state model:
 
 According to [this GitHub discussion](https://github.com/orgs/community/discussions/70480#discussioncomment-8831121), GitHub's mobile app supports post-merge reviews, allowing teams to review emergency PRs after they've been merged.
 
-**Once you approve a PR** (via mobile app or any other method), **it will not appear in future reports** - the action checks for approvals at any time, not just before merge.
+**Once you approve a PR** (via mobile app or comment), **it will not appear in future reports** - the action checks for approvals at any time, not just before merge.
+
+**Important:** The approval must come from someone other than the PR author. Self-approvals are not counted.
 
 ## Troubleshooting
 
@@ -295,6 +309,10 @@ env:
 **Cause:** You may be using an older version that didn't filter by default branch.
 
 **Solution:** Upgrade to `@main`. The action now only checks PRs merged to the default branch (commit `316ee41`).
+
+### PR author approved their own PR but it still appears
+
+**Expected behavior:** Self-approvals are not counted. The PR needs approval from someone other than its author to be considered reviewed.
 
 ## License
 
