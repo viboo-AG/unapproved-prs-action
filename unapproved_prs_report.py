@@ -36,21 +36,19 @@ def _signal_handler(signum: int, frame: Any) -> None:
 
 def _get_pr_approval_status(
     pr: Any,  # PullRequest - using Any to avoid runtime import
-    merge_time: datetime | None,
 ) -> bool:
     """
-    Check if a PR had any approvals before it was merged.
+    Check if a PR has any approvals (before OR after merge).
+
+    This supports post-merge review workflows where PRs are merged during
+    emergencies and reviewed after the fact.
 
     Args:
         pr: Pull request object
-        merge_time: When the PR was merged
 
     Returns:
-        True if the PR had at least one approval before merge
+        True if the PR has at least one approval (at any time)
     """
-    if not merge_time:
-        return False
-
     # Track approval status per reviewer
     # Note: In GitHub, APPROVED stays in effect until explicitly dismissed or
     # changed to REQUEST_CHANGES. COMMENTED reviews don't override approvals.
@@ -62,13 +60,8 @@ def _get_pr_approval_status(
             sys.exit(130)
 
         reviewer = review.user.login
-        review_time = review.submitted_at
 
-        # Only consider reviews submitted before merge
-        if not review_time or review_time >= merge_time:
-            continue
-
-        # Track approval state changes
+        # Track approval state changes (accept reviews at ANY time)
         if review.state == "APPROVED":
             approvals.add(reviewer)
         elif review.state in ("REQUEST_CHANGES", "DISMISSED"):
@@ -84,7 +77,7 @@ def _find_unreviewed_merged_prs(
     since_days: int = 30,
 ) -> Sequence[tuple[Any, str]]:  # list[tuple[PullRequest, str]]
     """
-    Find merged PRs that were never approved before merge.
+    Find merged PRs that have never been approved (before OR after merge).
 
     Args:
         repo: GitHub repository object
@@ -137,8 +130,8 @@ def _find_unreviewed_merged_prs(
 
         merged_count += 1
 
-        # Check if it had approval before merge
-        has_approval = _get_pr_approval_status(pr, pr.merged_at)
+        # Check if it has any approval (at any time - before OR after merge)
+        has_approval = _get_pr_approval_status(pr)
 
         if not has_approval:
             merged_by = pr.merged_by.login if pr.merged_by else "unknown"
@@ -201,8 +194,8 @@ def _generate_report(
     print("", file=f)
     print("Please review these PRs and add a post-merge review:", file=f)
     print("1. Review the changes in the PR", file=f)
-    print("2. Add your review comments (GitHub mobile app allows post-merge reviews)", file=f)
-    print("3. Close this issue once all PRs have been reviewed", file=f)
+    print("2. Add your approval (GitHub mobile app allows post-merge reviews)", file=f)
+    print("3. Once approved, the PR will not appear in future reports", file=f)
     print("", file=f)
     print("---", file=f)
     print(f"*Report generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}*", file=f)
