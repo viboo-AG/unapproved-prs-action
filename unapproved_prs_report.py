@@ -48,12 +48,16 @@ def _get_pr_approval_status(
     1. Formal GitHub Reviews (APPROVED state)
     2. PR comments containing approval patterns (for users without mobile app access)
 
+    Note: Self-approvals (by the PR author) are not counted.
+
     Args:
         pr: Pull request object
 
     Returns:
-        True if the PR has at least one approval (at any time)
+        True if the PR has at least one approval (at any time) from someone other than the author
     """
+    pr_author = pr.user.login
+    
     # Track approval status per reviewer
     # Note: In GitHub, APPROVED stays in effect until explicitly dismissed or
     # changed to REQUEST_CHANGES. COMMENTED reviews don't override approvals.
@@ -66,6 +70,10 @@ def _get_pr_approval_status(
             sys.exit(130)
 
         reviewer = review.user.login
+        
+        # Skip self-reviews
+        if reviewer == pr_author:
+            continue
 
         # Track approval state changes (accept reviews at ANY time)
         if review.state == "APPROVED":
@@ -91,8 +99,13 @@ def _get_pr_approval_status(
         if _should_exit:
             sys.exit(130)
 
+        commenter = comment.user.login
+        
+        # Skip comments from PR author (no self-approval)
+        if commenter == pr_author:
+            continue
+
         if comment.body and approval_pattern.search(comment.body):
-            commenter = comment.user.login
             approvals.add(commenter)
 
     return len(approvals) > 0
@@ -239,6 +252,8 @@ def _generate_report(
     print("", file=f)
     print("[Your review comments here]", file=f)
     print("```", file=f)
+    print("", file=f)
+    print("**Note:** The approval must come from someone other than the PR author (no self-approvals).", file=f)
     print("", file=f)
     print("The script will detect this pattern and the PR won't appear in future reports.", file=f)
     print("", file=f)
