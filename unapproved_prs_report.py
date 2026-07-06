@@ -272,6 +272,18 @@ def _generate_report(
     print("", file=f)
     print("✅ Once approved (via any method), the PR **will not appear in future reports**.", file=f)
     print("", file=f)
+
+    # Add section with exact commands to approve all PRs
+    print("## Quick Approval Commands", file=f)
+    print("", file=f)
+    print("Copy and paste these commands to approve all PRs at once using GitHub CLI:", file=f)
+    print("", file=f)
+    print("```bash", file=f)
+    for pr, _ in unreviewed_prs:
+        print(f"gh pr review {pr.number} --approve --body \"Post-merge review: approved\"", file=f)
+    print("```", file=f)
+    print("", file=f)
+
     print("---", file=f)
     print(f"*Report generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}*", file=f)
 
